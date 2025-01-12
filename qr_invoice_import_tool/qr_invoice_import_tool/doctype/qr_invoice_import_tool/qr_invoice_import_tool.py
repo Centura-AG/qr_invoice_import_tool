@@ -210,7 +210,9 @@ def match_party(party_data, create_missing_supplier):
     if not party and create_missing_supplier:
 
         supplier = create_supplier(party_data)
-        create_address({party_data, supplier})
+        if not supplier:
+            frappe.throw(_("Error creating supplier: {0}").format(party_name))
+        create_address(party_data, supplier)
 
         return supplier
 
@@ -223,23 +225,31 @@ def match_party(party_data, create_missing_supplier):
     return party[0].name
 
 def create_supplier(data):
-    supplier = frappe.new_doc("Supplier")
-    supplier.supplier_name = data.get("party_name")
-    supplier.insert(ignore_permissions=True)
-    frappe.db.commit()
+    try:
+        supplier = frappe.new_doc("Supplier")
+        supplier.supplier_name = data.get("party_name")
+        supplier.insert(ignore_permissions=True)
+        frappe.db.commit()
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), _("Supplier Creation Error"))
+        return None
     return supplier.name
 
-def create_address(data, supplier):
-    address = frappe.new_doc("Address")
-    address.update({
-        "address_type": "Billing",
-        "address_line1": data.get("address_line1"),
-        "city": data.get("city"),
-        "country": data.get("country"),
-        "pincode": data.get("pincode"),
-        "is_primary_address": 1,
-        "links": [{"link_doctype": "Supplier", "link_name": supplier}]
-    })
-    address.insert(ignore_permissions=True)
-    frappe.db.commit()
+def create_address(data, party):
+    try:
+        address = frappe.new_doc("Address")
+        address.update({
+            "address_type": "Billing",
+            "address_line1": data.get("address").get("address_line1"),
+            "city": data.get("address").get("city"),
+            "country": data.get("address").get("country"),
+            "pincode": data.get("address").get("pincode"),
+            "is_primary_address": 1,
+            "links": [{"link_doctype": data.get("party_type"), "link_name": party}]
+        })
+        address.insert(ignore_permissions=True)
+        frappe.db.commit()
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), _("Address Creation Error"))
+        return None
     return address.name
