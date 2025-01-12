@@ -186,7 +186,7 @@ def parse_qr_invoice_data(company, qr_data, default_item, create_missing_supplie
             "country": frappe.db.get_value("Country", {"code": lines[10].lower()}, "name")
         }
     }
-
+    
     invoice_details = {
         "company": company,
         "reference_number": lines[28],
@@ -208,26 +208,11 @@ def match_party(party_data, create_missing_supplier):
     party = frappe.db.get_list("Supplier", filters={"supplier_name": party_name})
 
     if not party and create_missing_supplier:
-        party = frappe.new_doc("Supplier")
-        party.supplier_name = party_name
-        party.insert(ignore_permissions=True)
-        frappe.db.commit()
 
-        address_data = party_data.get("address", {})
-        address = frappe.new_doc("Address")
-        address.update({
-            "address_type": "Billing",
-            "address_line1": address_data.get("address_line1"),
-            "city": address_data.get("city"),
-            "country": address_data.get("country"),
-            "pincode": address_data.get("pincode"),
-            "is_primary_address": 1,
-            "links": [{"link_doctype": "Supplier", "link_name": party.name}]
-        })
-        address.insert(ignore_permissions=True)
-        frappe.db.commit()
+        supplier = create_supplier(party_data)
+        create_address({party_data, supplier})
 
-        return party.name
+        return supplier
 
     elif not party:
         frappe.throw(_("Supplier not found: {0}").format(party_name))
@@ -236,3 +221,25 @@ def match_party(party_data, create_missing_supplier):
         frappe.throw(_("Multiple suppliers found with the same name: {0}").format(party_name))
 
     return party[0].name
+
+def create_supplier(data):
+    supplier = frappe.new_doc("Supplier")
+    supplier.supplier_name = data.get("party_name")
+    supplier.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return supplier.name
+
+def create_address(data, supplier):
+    address = frappe.new_doc("Address")
+    address.update({
+        "address_type": "Billing",
+        "address_line1": data.get("address_line1"),
+        "city": data.get("city"),
+        "country": data.get("country"),
+        "pincode": data.get("pincode"),
+        "is_primary_address": 1,
+        "links": [{"link_doctype": "Supplier", "link_name": supplier}]
+    })
+    address.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return address.name
