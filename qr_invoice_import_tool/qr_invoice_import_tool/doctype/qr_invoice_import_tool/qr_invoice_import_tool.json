@@ -16,6 +16,7 @@
   "dimension_col_break",
   "cost_center",
   "section_break_4",
+  "scan_qr_invoice",
   "invoices"
  ],
  "fields": [
@@ -77,12 +78,17 @@
    "fieldname": "create_missing_supplier",
    "fieldtype": "Check",
    "label": "Create Missing Supplier"
+  },
+  {
+   "fieldname": "scan_qr_invoice",
+   "fieldtype": "Button",
+   "label": "Scan QR Invoice"
   }
  ],
  "hide_toolbar": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-01-10 21:51:22.880568",
+ "modified": "2025-01-12 16:00:29.553182",
  "modified_by": "Administrator",
  "module": "QR Invoice Import Tool",
  "name": "QR Invoice Import Tool",

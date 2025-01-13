@@ -5,7 +5,6 @@ frappe.ui.form.on("QR Invoice Import Tool", {
     refresh: function (frm) {
         frm.disable_save();
         setupPrimaryAction(frm);
-        addScannerButton(frm);
 
         if (frm.doc.create_missing_party) {
             frm.set_df_property("party", "fieldtype", "Data", frm.doc.name, "invoices");
@@ -16,6 +15,10 @@ frappe.ui.form.on("QR Invoice Import Tool", {
                 fetchCompanyDefaults(defaultCompany, frm);
             });
         }
+    },
+
+    scan_qr_invoice: function (frm) {
+        openQRCodeScanner(frm);
     }
 });
 
@@ -37,12 +40,6 @@ function setupPrimaryAction(frm) {
                 frappe.msgprint(__("Purchase Invoices created successfully"), __("Success"));
             }
         });
-    });
-}
-
-function addScannerButton(frm) {
-    frm.add_custom_button(__('Scan QR-Code'), () => {
-        openQRCodeScanner(frm);
     });
 }
 
