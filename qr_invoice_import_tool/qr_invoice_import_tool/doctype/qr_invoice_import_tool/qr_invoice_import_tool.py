@@ -4,6 +4,7 @@
 import frappe
 import json
 from datetime import date
+from schwifty import IBAN
 from frappe import _, scrub
 from frappe.model.document import Document
 from frappe.utils import flt, nowdate
@@ -179,6 +180,7 @@ def parse_qr_invoice_data(company, qr_data, default_item, create_missing_supplie
     party_data = {
         "party_type": "Supplier",
         "party_name": lines[5],
+        "iban": lines[3],
         "address": {
             "address_line1": lines[6] + lines[7],
             "city": lines[9],
@@ -213,6 +215,7 @@ def match_party(party_data, create_missing_supplier):
         if not supplier:
             frappe.throw(_("Error creating supplier: {0}").format(party_name))
         create_address(party_data, supplier)
+        ensure_bank_account(party_data, supplier)
 
         return supplier
 
@@ -253,3 +256,43 @@ def create_address(data, party):
         frappe.log_error(frappe.get_traceback(), _("Address Creation Error"))
         return None
     return address.name
+
+def get_info_from_iban(iban):
+    iban = IBAN(iban)
+
+    if not iban.validate(validate_bban=True):
+        frappe.throw(_("Invalid IBAN: {0}").format(iban))
+
+    return iban.bank
+
+def ensure_bank(data):
+    bank_data = get_info_from_iban(data.get("iban"))
+    bank = frappe.db.get_list("Bank", filters={"bank_name": bank_data.get("name")})
+    if not bank:
+        bank = frappe.new_doc("Bank")
+        bank.update({
+            "bank_name": bank_data.get("name"),
+            "bank_code": bank_data.get("bank_code"),
+            "bank_country": frappe.db.get_value("Country", {"code": bank_data.get("country_code").lower()}, "name"),
+            "swift_number": bank_data.get("bic")
+        })
+        bank.insert(ignore_permissions=True)
+        frappe.db.commit()
+    return bank.name
+
+def ensure_bank_account(data, party):
+    bank = ensure_bank(data)
+    bank_account = frappe.db.get_list("Bank Account", filters={"iban": data.get("iban")})
+    if not bank_account:
+        bank_account = frappe.new_doc("Bank Account")
+        bank_account.update({
+            "account_name": data.get("party_name"),
+            "bank": bank,
+            "iban": data.get("iban"),
+            "party_type": data.get("party_type"),
+            "party": party,
+            "is_default": True
+        })
+        bank_account.insert(ignore_permissions=True)
+        frappe.db.commit()
+    return bank_account.name
