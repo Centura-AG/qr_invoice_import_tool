@@ -215,8 +215,7 @@ def match_party(party_data, create_missing_supplier):
         if not supplier:
             frappe.throw(_("Error creating supplier: {0}").format(party_name))
         create_address(party_data, supplier)
-        bank = create_bank(party_data)
-        create_bank_account(party_data, bank, supplier)
+        ensure_bank_account(party_data, supplier)
 
         return supplier
 
@@ -266,7 +265,7 @@ def get_info_from_iban(iban):
 
     return iban.bank
 
-def create_bank(data):
+def ensure_bank(data):
     bank_data = get_info_from_iban(data.get("iban"))
     bank = frappe.db.get_list("Bank", filters={"bank_name": bank_data.get("name")})
     if not bank:
@@ -281,7 +280,8 @@ def create_bank(data):
         frappe.db.commit()
     return bank.name
 
-def create_bank_account(data, bank, party):
+def ensure_bank_account(data, party):
+    bank = ensure_bank(data)
     bank_account = frappe.db.get_list("Bank Account", filters={"iban": data.get("iban")})
     if not bank_account:
         bank_account = frappe.new_doc("Bank Account")
